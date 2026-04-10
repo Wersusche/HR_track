@@ -32,12 +32,9 @@ const DEFAULT_HEADERS = [
 ];
 
 const els = {
-  origin: document.getElementById('current-origin'),
-  clientId: document.getElementById('client-id'),
   spreadsheetTitle: document.getElementById('spreadsheet-title'),
   sheetName: document.getElementById('sheet-name'),
   scriptName: document.getElementById('script-name'),
-  saveConfig: document.getElementById('save-config'),
   authorize: document.getElementById('authorize'),
   runSetup: document.getElementById('run-setup'),
   generateScript: document.getElementById('generate-script'),
@@ -56,12 +53,10 @@ const state = {
   generatedBlobUrl: ''
 };
 
-els.origin.textContent = window.location.origin;
 applyConfigToUi();
 bindEvents();
 
 function bindEvents() {
-  els.saveConfig.addEventListener('click', saveConfigFromUi);
   els.authorize.addEventListener('click', authorize);
   els.runSetup.addEventListener('click', runSetup);
   els.generateScript.addEventListener('click', generateScript);
@@ -77,7 +72,6 @@ function loadConfig() {
 }
 
 function applyConfigToUi() {
-  if (state.config.clientId) els.clientId.value = state.config.clientId;
   if (state.config.spreadsheetTitle) els.spreadsheetTitle.value = state.config.spreadsheetTitle;
   if (state.config.sheetName) els.sheetName.value = state.config.sheetName;
   if (state.config.scriptName) els.scriptName.value = state.config.scriptName;
@@ -85,7 +79,6 @@ function applyConfigToUi() {
 
 function saveConfigFromUi() {
   state.config = {
-    clientId: els.clientId.value.trim(),
     spreadsheetTitle: els.spreadsheetTitle.value.trim(),
     sheetName: els.sheetName.value.trim(),
     scriptName: els.scriptName.value.trim()
@@ -124,7 +117,7 @@ function setResult(el, value, href) {
 }
 
 function enableSetup() {
-  els.runSetup.disabled = !(state.accessToken && els.clientId.value.trim());
+  els.runSetup.disabled = !state.accessToken;
 }
 
 async function authorize() {
