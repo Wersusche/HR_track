@@ -190,7 +190,7 @@ async function createSpreadsheet(title, sheetName) {
   return data;
 }
 
-async function writeHeaders(spreadsheetId, sheetName) {
+async function writeHeaders(spreadsheetId, sheetName, sheetId) {
   log('Записываю шапку таблицы...');
   await apiFetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName + '!1:1')}?valueInputOption=RAW`, {
     method: 'PUT',
@@ -209,7 +209,7 @@ async function writeHeaders(spreadsheetId, sheetName) {
         {
           repeatCell: {
             range: {
-              sheetId: 0,
+              sheetId,
               startRowIndex: 0,
               endRowIndex: 1
             },
@@ -223,7 +223,7 @@ async function writeHeaders(spreadsheetId, sheetName) {
         },
         {
           updateSheetProperties: {
-            properties: { sheetId: 0, gridProperties: { frozenRowCount: 1 } },
+            properties: { sheetId, gridProperties: { frozenRowCount: 1 } },
             fields: 'gridProperties.frozenRowCount'
           }
         }
@@ -331,9 +331,15 @@ async function runSetup() {
     const spreadsheet = await createSpreadsheet(spreadsheetTitle, sheetName);
     const spreadsheetId = spreadsheet.spreadsheetId;
     const spreadsheetUrl = spreadsheet.spreadsheetUrl;
+    const sheetId = spreadsheet.sheets?.[0]?.properties?.sheetId;
+
+    if (!Number.isInteger(sheetId)) {
+      throw new Error('Google Sheets API не вернул id созданного листа');
+    }
+
     setResult(els.resultSheet, spreadsheetTitle, spreadsheetUrl);
 
-    await writeHeaders(spreadsheetId, sheetName);
+    await writeHeaders(spreadsheetId, sheetName, sheetId);
 
     const project = await createBoundScript(spreadsheetId, spreadsheetTitle);
     const scriptId = project.scriptId;
