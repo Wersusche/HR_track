@@ -1,6 +1,6 @@
 
 const STORAGE_KEY = 'hr-track-installer-config-v1';
-
+const GOOGLE_CLIENT_ID = '1006836828889-n1buk13hje1o559r34urd658slrfe443.apps.googleusercontent.com';
 const DEFAULT_HEADERS = [
   'Дата отклика',
   'Компания',
