@@ -99,3 +99,28 @@ code {
 .muted {
   color: #475467;
 }
+.site-footer,
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 8px 0 0;
+}
+.site-nav {
+  margin-bottom: 20px;
+}
+.site-footer a,
+.site-nav a,
+.legal-document a {
+  color: #1d4ed8;
+  font-weight: 700;
+}
+.legal-document h1 {
+  margin-top: 0;
+}
+.legal-document h2 {
+  margin-top: 24px;
+}
+.legal-document p {
+  line-height: 1.65;
+}

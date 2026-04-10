@@ -17,6 +17,10 @@
    - Google Apps Script API
 3. Добавить origin:
    - `https://wersusche.github.io`
+4. В OAuth consent screen / App domain указать:
+   - Application home page: `https://wersusche.github.io/HR_track/`
+   - Application privacy policy link: `https://wersusche.github.io/HR_track/privacy.html`
+   - Application terms of service link: `https://wersusche.github.io/HR_track/terms.html`
 
 Для project site Pages origin — именно `https://wersusche.github.io`, а путь `/HR_track/` указывается уже в URL страницы.
 
