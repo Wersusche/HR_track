@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>HR Track Setup</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+  <main class="page">
+    <section class="card hero">
+      <h1>HR Track installer</h1>
+      <p>Создаёт Google Sheet, привязанный Apps Script web app и генерирует персональный userscript для Tampermonkey.</p>
+      <div class="notice">
+        <strong>Нужно один раз:</strong> установить Tampermonkey, дать Google-разрешения и подтвердить установку userscript.
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Шаг 0. Подготовка Google Cloud</h2>
+      <ol>
+        <li>Создай OAuth Client ID типа <b>Web application</b>.</li>
+        <li>Включи <b>Google Sheets API</b> и <b>Google Apps Script API</b>.</li>
+        <li>Добавь этот origin в Authorized JavaScript origins:
+          <code id="current-origin"></code>
+        </li>
+      </ol>
+      <label class="field">
+        <span>Google OAuth Client ID</span>
+        <input id="client-id" placeholder="1234567890-abc123.apps.googleusercontent.com" />
+      </label>
+      <label class="field">
+        <span>Название таблицы</span>
+        <input id="spreadsheet-title" value="Job Tracker" />
+      </label>
+      <label class="field">
+        <span>Название листа</span>
+        <input id="sheet-name" value="Отклики" />
+      </label>
+      <label class="field">
+        <span>Название userscript</span>
+        <input id="script-name" value="Vacancy pages -> Google Sheets Job Tracker" />
+      </label>
+      <div class="buttons">
+        <button id="save-config" type="button">Сохранить локально</button>
+        <button id="authorize" type="button" class="primary">Войти через Google</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Шаг 1. Создание инфраструктуры</h2>
+      <div class="buttons">
+        <button id="run-setup" type="button" class="primary" disabled>Создать таблицу, Apps Script и deploy</button>
+      </div>
+      <pre id="log" class="log"></pre>
+    </section>
+
+    <section class="card">
+      <h2>Шаг 2. Установка userscript</h2>
+      <div class="buttons">
+        <button id="generate-script" type="button" disabled>Сгенерировать userscript</button>
+        <button id="open-install" type="button" disabled>Открыть установку</button>
+        <a id="download-script" class="buttonlike" download="hr-track.user.js" aria-disabled="true">Скачать .user.js</a>
+      </div>
+      <p class="muted">
+        В MV3-режиме Tampermonkey поток установки может зависеть от браузера и настроек. Если кнопка “Открыть установку” не сработает, скачай файл и открой его или импортируй через Tampermonkey Dashboard.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>Результат</h2>
+      <dl class="results">
+        <dt>Spreadsheet</dt><dd id="result-sheet">—</dd>
+        <dt>Script project</dt><dd id="result-script">—</dd>
+        <dt>Web app URL</dt><dd id="result-webapp">—</dd>
+      </dl>
+    </section>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
