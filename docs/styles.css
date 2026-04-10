@@ -26,6 +26,21 @@ body {
   padding: 12px 14px;
   border-radius: 14px;
 }
+.notice.warning {
+  margin-top: 14px;
+  background: #fff7ed;
+  border-color: #fdba74;
+  color: #9a3412;
+}
+.notice.reminder {
+  margin-top: 14px;
+  background: #ecfdf5;
+  border-color: #86efac;
+  color: #166534;
+}
+.notice p {
+  margin: 8px 0 0;
+}
 .field {
   display: block;
   margin: 14px 0;

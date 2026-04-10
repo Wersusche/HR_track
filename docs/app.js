@@ -1,5 +1,7 @@
 
 const STORAGE_KEY = 'hr-track-installer-config-v1';
+const PENDING_SETUP_KEY = 'hr-track-pending-setup-v1';
+const SCRIPT_API_SETTINGS_URL = 'https://script.google.com/home/usersettings';
 const GOOGLE_CLIENT_ID = '1006836828889-n1buk13hje1o559r34urd658slrfe443.apps.googleusercontent.com';
 const DEFAULT_HEADERS = [
   'Дата отклика',
@@ -37,6 +39,9 @@ const els = {
   scriptName: document.getElementById('script-name'),
   authorize: document.getElementById('authorize'),
   runSetup: document.getElementById('run-setup'),
+  continueSetup: document.getElementById('continue-setup'),
+  scriptApiAccess: document.getElementById('script-api-access'),
+  scriptApiDisableReminder: document.getElementById('script-api-disable-reminder'),
   generateScript: document.getElementById('generate-script'),
   openInstall: document.getElementById('open-install'),
   downloadScript: document.getElementById('download-script'),
@@ -49,16 +54,21 @@ const els = {
 const state = {
   accessToken: '',
   config: loadConfig(),
+  pendingSetup: loadPendingSetup(),
   setup: null,
+  isRunningSetup: false,
   generatedBlobUrl: ''
 };
 
 applyConfigToUi();
+restorePendingSetupUi();
 bindEvents();
+updateSetupControls();
 
 function bindEvents() {
   els.authorize.addEventListener('click', authorize);
   els.runSetup.addEventListener('click', runSetup);
+  els.continueSetup.addEventListener('click', continueSetup);
   els.generateScript.addEventListener('click', generateScript);
   els.openInstall.addEventListener('click', openInstall);
 }
@@ -68,6 +78,14 @@ function loadConfig() {
     return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
   } catch (error) {
     return {};
+  }
+}
+
+function loadPendingSetup() {
+  try {
+    return JSON.parse(localStorage.getItem(PENDING_SETUP_KEY) || 'null');
+  } catch (error) {
+    return null;
   }
 }
 
@@ -116,8 +134,56 @@ function setResult(el, value, href) {
   }
 }
 
-function enableSetup() {
-  els.runSetup.disabled = !state.accessToken;
+function updateSetupControls() {
+  const hasAccessToken = Boolean(state.accessToken);
+  const hasPendingSetup = Boolean(state.pendingSetup);
+
+  els.runSetup.disabled = state.isRunningSetup || !hasAccessToken || hasPendingSetup;
+  els.continueSetup.disabled = state.isRunningSetup || !hasAccessToken || !hasPendingSetup;
+}
+
+function showScriptApiAccessHelp() {
+  els.scriptApiAccess.hidden = false;
+}
+
+function hideScriptApiAccessHelp() {
+  els.scriptApiAccess.hidden = true;
+}
+
+function showScriptApiDisableReminder() {
+  els.scriptApiDisableReminder.hidden = false;
+}
+
+function hideScriptApiDisableReminder() {
+  els.scriptApiDisableReminder.hidden = true;
+}
+
+function restorePendingSetupUi() {
+  if (!state.pendingSetup) return;
+
+  setResult(els.resultSheet, state.pendingSetup.spreadsheetTitle, state.pendingSetup.spreadsheetUrl);
+  showScriptApiAccessHelp();
+}
+
+function savePendingSetup(setup) {
+  state.pendingSetup = setup;
+  localStorage.setItem(PENDING_SETUP_KEY, JSON.stringify(setup));
+  setResult(els.resultSheet, setup.spreadsheetTitle, setup.spreadsheetUrl);
+  showScriptApiAccessHelp();
+  updateSetupControls();
+}
+
+function clearPendingSetup() {
+  state.pendingSetup = null;
+  localStorage.removeItem(PENDING_SETUP_KEY);
+  hideScriptApiAccessHelp();
+  updateSetupControls();
+}
+
+function isAppsScriptApiAccessError(error) {
+  const message = String(error?.message || error || '');
+  return message.includes('User has not enabled the Apps Script API')
+    || message.includes(SCRIPT_API_SETTINGS_URL);
 }
 
 async function authorize() {
@@ -147,7 +213,7 @@ async function authorize() {
       }
       state.accessToken = response.access_token;
       log('Google access token получен');
-      enableSetup();
+      updateSetupControls();
     }
   });
 
@@ -317,67 +383,145 @@ async function runSetup() {
     return;
   }
 
-  els.runSetup.disabled = true;
+  clearPendingSetup();
+  hideScriptApiDisableReminder();
+  await runSetupTask(async () => {
+    const setupContext = await createSetupContext();
+    await finishSetup(setupContext);
+  });
+}
+
+async function continueSetup() {
+  if (!state.pendingSetup) {
+    alert('Нет сохранённого шага для продолжения');
+    return;
+  }
+
+  if (!state.accessToken) {
+    alert('Сначала авторизуйся через Google ещё раз');
+    return;
+  }
+
+  hideScriptApiAccessHelp();
+  hideScriptApiDisableReminder();
+  await runSetupTask(async () => {
+    await finishSetup(state.pendingSetup);
+  });
+}
+
+async function runSetupTask(task) {
+  state.isRunningSetup = true;
   els.generateScript.disabled = true;
   els.openInstall.disabled = true;
   els.downloadScript.setAttribute('aria-disabled', 'true');
   els.downloadScript.removeAttribute('href');
+  updateSetupControls();
 
   try {
-    const spreadsheetTitle = els.spreadsheetTitle.value.trim() || 'Job Tracker';
-    const sheetName = els.sheetName.value.trim() || 'Отклики';
-    const token = randomToken();
-
-    const spreadsheet = await createSpreadsheet(spreadsheetTitle, sheetName);
-    const spreadsheetId = spreadsheet.spreadsheetId;
-    const spreadsheetUrl = spreadsheet.spreadsheetUrl;
-    const sheetId = spreadsheet.sheets?.[0]?.properties?.sheetId;
-
-    if (!Number.isInteger(sheetId)) {
-      throw new Error('Google Sheets API не вернул id созданного листа');
-    }
-
-    setResult(els.resultSheet, spreadsheetTitle, spreadsheetUrl);
-
-    await writeHeaders(spreadsheetId, sheetName, sheetId);
-
-    const project = await createBoundScript(spreadsheetId, spreadsheetTitle);
-    const scriptId = project.scriptId;
-    setResult(els.resultScript, scriptId);
-
-    await updateScriptContent(scriptId, spreadsheetId, sheetName, token);
-
-    const version = await createVersion(scriptId);
-    const deployment = await createDeployment(scriptId, version.versionNumber);
-    const webAppUrl = extractWebAppUrl(deployment);
-
-    if (!webAppUrl) {
-      throw new Error('Не удалось получить web app URL из deployment response');
-    }
-
-    setResult(els.resultWebapp, webAppUrl, webAppUrl);
-
-    state.setup = {
-      spreadsheetTitle,
-      sheetName,
-      spreadsheetId,
-      spreadsheetUrl,
-      scriptId,
-      deploymentId: deployment.deploymentId,
-      webAppUrl,
-      token,
-      scriptName: els.scriptName.value.trim() || 'Vacancy pages -> Google Sheets Job Tracker'
-    };
-
-    localStorage.setItem('hr-track-last-setup', JSON.stringify(state.setup));
-    log('Готово. Теперь можно сгенерировать userscript.');
-    els.generateScript.disabled = false;
+    await task();
   } catch (error) {
-    log(`Ошибка: ${error.message || error}`);
-    alert(error.message || String(error));
+    handleSetupError(error);
   } finally {
-    els.runSetup.disabled = false;
+    state.isRunningSetup = false;
+    updateSetupControls();
   }
+}
+
+async function createSetupContext() {
+  const spreadsheetTitle = els.spreadsheetTitle.value.trim() || 'Job Tracker';
+  const sheetName = els.sheetName.value.trim() || 'Отклики';
+  const token = randomToken();
+  const scriptName = els.scriptName.value.trim() || 'Vacancy pages -> Google Sheets Job Tracker';
+
+  const spreadsheet = await createSpreadsheet(spreadsheetTitle, sheetName);
+  const spreadsheetId = spreadsheet.spreadsheetId;
+  const spreadsheetUrl = spreadsheet.spreadsheetUrl;
+  const sheetId = spreadsheet.sheets?.[0]?.properties?.sheetId;
+
+  if (!Number.isInteger(sheetId)) {
+    throw new Error('Google Sheets API не вернул id созданного листа');
+  }
+
+  setResult(els.resultSheet, spreadsheetTitle, spreadsheetUrl);
+  await writeHeaders(spreadsheetId, sheetName, sheetId);
+
+  return {
+    spreadsheetTitle,
+    sheetName,
+    spreadsheetId,
+    spreadsheetUrl,
+    token,
+    scriptName
+  };
+}
+
+async function finishSetup(setupContext) {
+  const {
+    spreadsheetTitle,
+    sheetName,
+    spreadsheetId,
+    spreadsheetUrl,
+    token,
+    scriptName
+  } = setupContext;
+
+  let project = null;
+  try {
+    project = await createBoundScript(spreadsheetId, spreadsheetTitle);
+  } catch (error) {
+    if (isAppsScriptApiAccessError(error)) {
+      savePendingSetup(setupContext);
+    }
+    throw error;
+  }
+
+  const scriptId = project.scriptId;
+  setResult(els.resultScript, scriptId);
+
+  await updateScriptContent(scriptId, spreadsheetId, sheetName, token);
+
+  const version = await createVersion(scriptId);
+  const deployment = await createDeployment(scriptId, version.versionNumber);
+  const webAppUrl = extractWebAppUrl(deployment);
+
+  if (!webAppUrl) {
+    throw new Error('Не удалось получить web app URL из deployment response');
+  }
+
+  setResult(els.resultWebapp, webAppUrl, webAppUrl);
+
+  state.setup = {
+    spreadsheetTitle,
+    sheetName,
+    spreadsheetId,
+    spreadsheetUrl,
+    scriptId,
+    deploymentId: deployment.deploymentId,
+    webAppUrl,
+    token,
+    scriptName
+  };
+
+  localStorage.setItem('hr-track-last-setup', JSON.stringify(state.setup));
+  clearPendingSetup();
+  showScriptApiDisableReminder();
+  log('Готово. Теперь можно сгенерировать userscript.');
+  log('Если включал Apps Script API только для установки, после проверки web app можно отключить его в настройках Apps Script.');
+  els.generateScript.disabled = false;
+}
+
+function handleSetupError(error) {
+  const message = error.message || String(error);
+
+  if (isAppsScriptApiAccessError(error) && state.pendingSetup) {
+    showScriptApiAccessHelp();
+    log(`Ошибка: ${message}`);
+    log('Открой настройки Apps Script, включи Google Apps Script API и нажми “Я включил, продолжить”. Уже созданная таблица будет использована повторно.');
+    return;
+  }
+
+  log(`Ошибка: ${message}`);
+  alert(message);
 }
 
 async function generateScript() {

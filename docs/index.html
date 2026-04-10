@@ -41,6 +41,22 @@
       <div class="buttons">
         <button id="run-setup" type="button" class="primary" disabled>Создать таблицу, Apps Script и deploy</button>
       </div>
+      <div id="script-api-access" class="notice warning" hidden>
+        <strong>Нужно включить Apps Script API в аккаунте Google.</strong>
+        <p>
+          Открой настройки Apps Script под тем же Google-аккаунтом, включи тумблер
+          <strong>Google Apps Script API</strong>, затем вернись сюда и продолжи.
+        </p>
+        <div class="buttons">
+          <a class="buttonlike" href="https://script.google.com/home/usersettings" target="_blank" rel="noopener noreferrer">Открыть настройки Apps Script</a>
+          <button id="continue-setup" type="button" class="primary" disabled>Я включил, продолжить</button>
+        </div>
+      </div>
+      <div id="script-api-disable-reminder" class="notice reminder" hidden>
+        <strong>Готово.</strong>
+        Если включал доступ Apps Script API только для установки, после проверки web app можно
+        <a href="https://script.google.com/home/usersettings" target="_blank" rel="noopener noreferrer">отключить его в настройках Apps Script</a>.
+      </div>
       <pre id="log" class="log"></pre>
     </section>
 
