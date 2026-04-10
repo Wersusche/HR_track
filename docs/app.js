@@ -130,18 +130,18 @@ function enableSetup() {
 async function authorize() {
   saveConfigFromUi();
 
-  if (!els.clientId.value.trim()) {
-    alert('Сначала вставь Google OAuth Client ID');
-    return;
-  }
-
+  if (!GOOGLE_CLIENT_ID) {
+  alert('Не задан GOOGLE_CLIENT_ID');
+  return;
+}
+  
   if (!window.google?.accounts?.oauth2) {
     alert('Google Identity Services ещё не загрузился');
     return;
   }
 
   const client = google.accounts.oauth2.initTokenClient({
-    client_id: els.clientId.value.trim(),
+    client_id: GOOGLE_CLIENT_ID,
     scope: [
       'https://www.googleapis.com/auth/spreadsheets',
       'https://www.googleapis.com/auth/script.projects',
